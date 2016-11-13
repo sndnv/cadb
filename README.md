@@ -1,6 +1,6 @@
 # cadb - C++ Auto-Discover Build
 
-Usage:
+### Usage
     cadb <actions>      [options]
     cadb clean          --build <build name>
     cadb clean,build    --build <build name>
@@ -8,7 +8,7 @@ Usage:
     cadb interactive    --build <build name>
     cadb help
 
-Actions:
+### Actions
     Multiple actions can be specified by separating them with commas (without whitespace). They are executed in the
     order that they have been entered.
 
@@ -22,7 +22,7 @@ Actions:
     help        Show this message.
     interactive <Not Implemented>
 
-Options:
+### Options
     The options can be specified in any order, with each one directly followed by its value (separated by whitespace).
 
     --build         <build name>    (required)  Specifies the build configuration name to be used (as defined in the
@@ -37,7 +37,7 @@ Options:
                                                 commas: 'a.b=123,a.c="d"' (resulting in {'a': {'b': 123, 'c': 'd'}}).
     --config-file   <path>          (optional)  Sets the configuration file to be used (default: './config/core.conf').
 
-Examples:
+### Examples
     cadb clean          --build prod
     cadb build          --build prod
     cadb clean,build    --build prod
@@ -46,6 +46,6 @@ Examples:
     cadb build          --build dev --config-file "/home/myUser/repos/awesome_app/config/dev.conf"
     cadb help
 
-Notes:
+### Notes
     - It is best not to use CTRL+C while a parallel build is being performed as keyboard interrupts are not handled
     correctly. Either wait until the compilation step is done or kill the processes manually.
