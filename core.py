@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from data.SourceFile import SourceFile
-from utils import FileSystem, Config, Database, Build
+from utils import FileSystem, Config, Database, Build, Graph
 from utils.Types import SourceType
 from getopt import getopt, GetoptError
 from datetime import datetime
@@ -28,8 +28,10 @@ Actions:
                 them into an executable. If '--source-file' is specified, compile only that file; no linking is done.
     clean       If '--source-file' is NOT specified, remove all object files and the target executable, if they exist.
                 If '--source-file' is specified, remove only that file.
-    deps        <Not Implemented>
-    graph       <Not Implemented>
+    deps        If '--source-file' is NOT specified, generate a dependency table for all sources. If '--source-file' is
+                specified, generate a dependency table only for that file.
+    graph       If '--source-file' is NOT specified, generate a Graphviz '.dot' file representing the dependencies of
+                all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
     stats       <Not Implemented>
     help        Show this message.
     interactive <Not Implemented>
@@ -101,6 +103,32 @@ def process_sources(config, options, db):
             sources[current_file] = source_file
 
     return sources
+
+
+def process_dependencies(sources, requested_file=None):
+    internal_dependencies = {}
+    external_dependencies = {}
+
+    if requested_file is not None:
+        if requested_file in sources:
+            sources = {requested_file: sources[requested_file]}
+        else:
+            sources = {}
+
+    for source in sources.values():
+        for current_internal_dependency in source.internal_dependencies:
+            if current_internal_dependency in internal_dependencies:
+                internal_dependencies[current_internal_dependency].append(source)
+            else:
+                internal_dependencies[current_internal_dependency] = [source]
+
+        for current_external_dependency in source.external_dependencies:
+            if current_external_dependency in external_dependencies:
+                external_dependencies[current_external_dependency].append(source)
+            else:
+                external_dependencies[current_external_dependency] = [source]
+
+    return internal_dependencies, external_dependencies
 
 
 def build_action(config, options, db, sources, logger):
@@ -330,12 +358,112 @@ def clean_action(config, options, _, sources, logger):
         logger.info("No output file found", extra={'action': 'clean'})
 
 
-def deps_action(config, options, db, sources, logger):
-    raise NotImplementedError("Action 'deps' is not available")  # TODO
+def deps_action(config, options, _, sources, logger):
+    try:
+        from terminaltables import AsciiTable
+    except ImportError:
+        logger.error(
+            "Package 'terminaltables 3.1.0' is required (see https://github.com/Robpol86/terminaltables)!",
+            extra={'action': 'deps'}
+        )
+        return
+
+    if 'source-file' in options:
+        requested_file = options['source-file']
+    else:
+        requested_file = None
+
+    sources_dir = config['builds'][options['build']]['paths']['sources']
+
+    internal_dependencies, external_dependencies = process_dependencies(sources, requested_file)
+    data = [("Dependency", "Type", "Used By")]
+
+    internal_dependencies_list = list(internal_dependencies.keys())
+    internal_dependencies_list.sort()
+    for dependency_path in internal_dependencies_list:
+        name = dependency_path.replace(sources_dir, '~')
+        sources_names = []
+
+        for current_source in internal_dependencies[dependency_path]:
+            sources_names.append(current_source.file_path.replace(sources_dir, '~'))
+
+        sources_names.sort()
+        data.append((name, "Internal", "\n".join(sources_names)))
+
+    external_dependencies_list = list(external_dependencies.keys())
+    external_dependencies_list.sort()
+    for dependency_path in external_dependencies_list:
+        sources_names = []
+
+        for current_source in external_dependencies[dependency_path]:
+            sources_names.append(current_source.file_path.replace(sources_dir, '~'))
+
+        sources_names.sort()
+        data.append((dependency_path, "External", "\n".join(sources_names)))
+
+    table = AsciiTable(data)
+    table.inner_row_border = True
+    logger.info(
+        "\n{0}".format(table.table),
+        extra={'action': 'deps'}
+    )
 
 
-def graph_action(config, options, db, sources, logger):
-    raise NotImplementedError("Action 'graph' is not available")  # TODO
+def graph_action(config, options, _, sources, logger):
+    try:
+        import networkx
+    except ImportError:
+        logger.error(
+            "Package 'networkx 1.11' is required (see https://github.com/networkx/networkx)!",
+            extra={'action': 'graph'}
+        )
+        return
+
+    try:
+        import pydotplus
+    except ImportError:
+        logger.error(
+            "Package 'pydotplus 2.0.2' is required (see https://github.com/carlos-jenkins/pydotplus)!",
+            extra={'action': 'graph'}
+        )
+        return
+
+    if 'source-file' in options:
+        requested_file = options['source-file']
+    else:
+        requested_file = None
+
+    sources_dir = config['builds'][options['build']]['paths']['sources']
+    graphs_dir = config['builds'][options['build']]['paths']['graphs']
+
+    internal_dependencies, external_dependencies = process_dependencies(sources, requested_file)
+    graph = networkx.MultiDiGraph()
+
+    for dependency_path, dependency_sources in internal_dependencies.items():
+        name = Graph.normalize_node_name(dependency_path.replace(sources_dir, '~'))
+
+        for current_source in dependency_sources:
+            current_source_name = current_source.file_path.replace(sources_dir, '~')
+            graph.add_edge(
+                Graph.normalize_node_name(name),
+                Graph.normalize_node_name(current_source_name)
+            )
+
+    for dependency_path, dependency_sources in external_dependencies.items():
+        for current_source in dependency_sources:
+            current_source_name = current_source.file_path.replace(sources_dir, '~')
+            graph.add_edge(
+                Graph.normalize_node_name(dependency_path),
+                Graph.normalize_node_name(current_source_name)
+            )
+
+    from networkx.drawing import nx_pydot
+    graph_path = Graph.get_graph_path(graphs_dir, sources_dir, "deps_graph", requested_file)
+    nx_pydot.write_dot(graph, graph_path)
+    logger.info(
+        "Graph file generated: [{0}]".format(graph_path),
+        extra={'action': 'graph'}
+    )
 
 
 def stats_action(config, options, db, sources, logger):

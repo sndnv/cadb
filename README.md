@@ -16,8 +16,10 @@
                 them into an executable. If '--source-file' is specified, compile only that file; no linking is done.
     clean       If '--source-file' is NOT specified, remove all object files and the target executable, if they exist.
                 If '--source-file' is specified, remove only that file.
-    deps        <Not Implemented>
-    graph       <Not Implemented>
+    deps        If '--source-file' is NOT specified, generate a dependency table for all sources. If '--source-file' is
+                specified, generate a dependency table only for that file.
+    graph       If '--source-file' is NOT specified, generate a Graphviz '.dot' file representing the dependencies of
+                all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
     stats       <Not Implemented>
     help        Show this message.
     interactive <Not Implemented>
