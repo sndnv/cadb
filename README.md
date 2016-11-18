@@ -20,7 +20,7 @@
                 specified, generate a dependency table only for that file.
     graph       If '--source-file' is NOT specified, generate a Graphviz '.dot' file representing the dependencies of
                 all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
-    stats       <Not Implemented>
+    stats       Show information about all source files ('--source-file' value is ignored).
     help        Show this message.
     interactive <Not Implemented>
 

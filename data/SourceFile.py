@@ -37,8 +37,10 @@ class SourceFile:
         self.raw_directives = []
         self.external_dependencies = []
         self.internal_dependencies = []
+        self.total_lines = 0
         with open(path, "r") as currentFile:
             for currentLine in currentFile:
+                self.total_lines += 1
                 for directive in PATTERN_DIRECTIVES.findall(currentLine):
                     self.raw_directives.append(directive)
                     for include in PATTERN_INCLUDES.findall(currentLine):
@@ -53,3 +55,4 @@ class SourceFile:
                             self.internal_dependencies.append(absolute_path)
 
         self.has_changed = self.file_hash != db_hash
+        self.size = os.path.getsize(path)

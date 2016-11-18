@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 from data.SourceFile import SourceFile
-from utils import FileSystem, Config, Database, Build, Graph
+from utils import FileSystem, Config, Database, Build, Graph, Stats
 from utils.Types import SourceType
 from getopt import getopt, GetoptError
 from datetime import datetime
@@ -32,7 +32,7 @@ Actions:
                 specified, generate a dependency table only for that file.
     graph       If '--source-file' is NOT specified, generate a Graphviz '.dot' file representing the dependencies of
                 all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
-    stats       <Not Implemented>
+    stats       Show information about all source files ('--source-file' value is ignored).
     help        Show this message.
     interactive <Not Implemented>
 
@@ -466,8 +466,105 @@ def graph_action(config, options, _, sources, logger):
     )
 
 
-def stats_action(config, options, db, sources, logger):
-    raise NotImplementedError("Action 'stats' is not available")  # TODO
+def stats_action(config, options, _, sources, logger):
+    try:
+        from terminaltables import AsciiTable
+    except ImportError:
+        logger.error(
+            "Package 'terminaltables 3.1.0' is required (see https://github.com/Robpol86/terminaltables)!",
+            extra={'action': 'stats'}
+        )
+        return
+
+    sources_dir = config['builds'][options['build']]['paths']['sources']
+    internal_dependencies, external_dependencies = process_dependencies(sources)
+
+    total_lines_count = 0
+    total_files_count = 0
+    total_files_size = 0
+
+    header_files_count = 0
+    implementation_files_count = 0
+
+    header_files_by_size = []
+    implementation_files_by_size = []
+
+    header_files_by_deps_count = []
+    implementation_files_by_deps_count = []
+
+    for current_source in sources.values():
+        total_lines_count += current_source.total_lines
+        total_files_size += current_source.size
+        total_files_count += 1
+
+        if current_source.file_type == SourceType.Header:
+            header_files_count += 1
+            header_files_by_size.append(current_source)
+            header_files_by_deps_count.append(current_source)
+        elif current_source.file_type == SourceType.Implementation:
+            implementation_files_count += 1
+            implementation_files_by_size.append(current_source)
+            implementation_files_by_deps_count.append(current_source)
+
+    mean_file_size = total_files_size / total_files_count
+    mean_lines_count = total_lines_count / total_files_count
+    header_files_by_size.sort(key=lambda current: current.size)
+    implementation_files_by_size.sort(key=lambda current: current.size)
+
+    header_files_by_deps_count.sort(
+        key=lambda current: len(current.internal_dependencies) + len(current.external_dependencies)
+    )
+
+    implementation_files_by_deps_count.sort(
+        key=lambda current: len(current.internal_dependencies) + len(current.external_dependencies)
+    )
+
+    internal_deps_count = len(internal_dependencies)
+    external_deps_count = len(external_dependencies)
+
+    internal_deps_by_use_count = sorted(
+        internal_dependencies.keys(),
+        key=lambda current: len(internal_dependencies[current])
+    )
+
+    external_deps_by_use_count = sorted(
+        external_dependencies.keys(),
+        key=lambda current: len(external_dependencies[current])
+    )
+
+    main_data = []
+    main_data.extend(Stats.get_header_files_size_data(sources_dir, header_files_by_size, 10))
+    main_data.extend(Stats.get_implementation_files_size_data(sources_dir, implementation_files_by_size, 10))
+    main_data.extend(Stats.get_header_files_deps_data(sources_dir, header_files_by_deps_count, 10))
+    main_data.extend(Stats.get_implementation_files_deps_data(sources_dir, implementation_files_by_deps_count, 10))
+    main_data.extend(Stats.get_internal_deps_data(sources_dir, internal_deps_by_use_count, internal_dependencies, 10))
+    main_data.extend(Stats.get_external_deps_data(external_deps_by_use_count, external_dependencies, 10))
+
+    main_table = AsciiTable(main_data)
+    main_table.inner_heading_row_border = False
+
+    misc_table = AsciiTable(
+        [
+            ("Lines of Code", "{0:,}".format(total_lines_count)),
+            ("Average Lines of Code", "{0:,.0f}".format(mean_lines_count)),
+            ("Files", "{0:,}".format(total_files_count)),
+            ("Files Size", "{0:.2f} KB".format(total_files_size / 1024)),
+            ("Average File Size", "{0:.2f} KB".format(mean_file_size / 1024)),
+            ("Header Files", "{0:,}".format(header_files_count)),
+            ("Implementation Files", "{0:,}".format(implementation_files_count)),
+            ("Internal Dependencies", "{0:,}".format(internal_deps_count)),
+            ("External Dependencies", "{0:,}".format(external_deps_count))
+        ]
+    )
+    misc_table.inner_heading_row_border = False
+
+    logger.info(
+        "\n{0}\n{1}".format(
+            main_table.table,
+            misc_table.table
+        ),
+        extra={'action': 'stats'}
+    )
 
 
 def help_action(*_):
