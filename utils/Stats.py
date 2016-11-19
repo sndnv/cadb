@@ -1,3 +1,7 @@
+# MIT License
+# Copyright (c) 2016 https://github.com/sndnv
+# See the project's LICENSE file for the full text
+
 def get_header_files_size_data(sources_dir, header_files_by_size, rows_count):
     """
     Builds table rows list containing data about header files sizes (largest/smallest).
