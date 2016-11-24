@@ -2,11 +2,10 @@
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-import hashlib
+from utils import FileSystem
 import re
 import os
 
-READ_BUFFER_SIZE = 65536
 PATTERN_DIRECTIVES = re.compile(r"^(#.+)")
 PATTERN_INCLUDES = re.compile(r"^#include (.+)")
 
@@ -30,13 +29,7 @@ class SourceFile:
         self.file_type = file_type
         self.object_file_path = object_file_path
 
-        hasher = hashlib.sha256()
-        with open(path, "rb") as currentFile:
-            data = currentFile.read(READ_BUFFER_SIZE)
-            while len(data) > 0:
-                hasher.update(data)
-                data = currentFile.read(READ_BUFFER_SIZE)
-        self.file_hash = hasher.hexdigest()
+        self.file_hash = FileSystem.get_file_hash(path)
 
         self.raw_directives = []
         self.external_dependencies = []

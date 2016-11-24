@@ -5,7 +5,7 @@
     cadb clean          --build <build name>
     cadb clean,build    --build <build name>
     cadb clean,build    --build <build name> [--source-file <path>] [--config-data <data>] [--config-file <path>]
-    cadb interactive    --build <build name>
+    cadb interactive    --build <build name> [--source-file <path>] [--config-data <data>] [--config-file <path>]
     cadb help
 
 ### Actions
@@ -22,7 +22,9 @@
                 all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
     stats       Show information about all source files ('--source-file' value is ignored).
     help        Show this message.
-    interactive <Not Implemented>
+    interactive Starts an interactive session; '--source-file' is passed to the session as part of the 'options' dict
+                and can be used by any of the available commands (run 'help' or 'help <command>' in the interactive
+                session to see more information).
 
 ### Options
     The options can be specified in any order, with each one directly followed by its value (separated by whitespace).
@@ -49,5 +51,7 @@
     cadb help
 
 ### Notes
+    - The options '--config-data' and '--config-file' are only used for building the final config object and are then
+    stripped from the 'options' dict.
     - It is best not to use CTRL+C while a parallel build is being performed as keyboard interrupts are not handled
     correctly. Either wait until the compilation step is done or kill the processes manually.

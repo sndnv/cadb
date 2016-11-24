@@ -3,8 +3,11 @@
 # See the project's LICENSE file for the full text
 
 from glob import glob
+import hashlib
 import json
 import os
+
+READ_BUFFER_SIZE = 65536
 
 
 def get_source_files_list(sources_path, extensions):
@@ -21,6 +24,16 @@ def get_source_files_list(sources_path, extensions):
     return files
 
 
+def get_session_files_list(build_path):
+    """
+    Creates a list of session file paths, based on the supplied config.
+
+    :param build_path: the build directory
+    :return: a list of session file paths
+    """
+    return glob("{0}{1}session_*.conf".format(build_path, os.sep))
+
+
 def load_json_file(file_path):
     """
     Attempts to load a JSON file from the specified path.
@@ -33,7 +46,7 @@ def load_json_file(file_path):
         with open(file_path, "r") as file:
             return json.load(file)
     else:
-        raise ValueError("Invalid JSON file path specified: [" + file_path + "]")
+        raise ValueError("Invalid JSON file path specified: [{0}]".format(file_path))
 
 
 def store_json_file(file_path, data):
@@ -46,3 +59,19 @@ def store_json_file(file_path, data):
     """
     with open(file_path, "w") as database:
         json.dump(data, database, indent=4, sort_keys=True)
+
+
+def get_file_hash(file_path):
+    """
+    Calculates the hash of the specified file.
+
+    :param file_path: the file to hash
+    :return: the calculated hash
+    """
+    hasher = hashlib.sha256()
+    with open(file_path, "rb") as currentFile:
+        data = currentFile.read(READ_BUFFER_SIZE)
+        while len(data) > 0:
+            hasher.update(data)
+            data = currentFile.read(READ_BUFFER_SIZE)
+    return hasher.hexdigest()

@@ -22,6 +22,9 @@ def parse_from_string(config_pair):
 
     Converts a string (in the format 'a.b.c=123') into a nested dict (in the format {'a': {'b': {'c': 123}}}).
 
+    Note: The value in the string (after the equals sign) is treated as a literal, therefore strings need to be quoted;
+    for example: 'a.b.c="some string"'.
+
     :param config_pair: the configuration string to be parsed
     :return: a dict representing the configuration
     """

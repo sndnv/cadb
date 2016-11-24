@@ -4,14 +4,15 @@
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-from data.SourceFile import SourceFile
-from utils import FileSystem, Config, Database, Build, Graph, Stats
+from data import Processing
+from utils import Config, Database, Build, Graph, Stats, Interactive
 from utils.Types import SourceType
 from getopt import getopt, GetoptError
 from datetime import datetime
-import logging
-import sys
 import multiprocessing
+import logging
+import signal
+import sys
 
 usageMessage = """
 C++ Auto-Discover Build
@@ -21,7 +22,7 @@ Usage:
     cadb clean          --build <build name>
     cadb clean,build    --build <build name>
     cadb clean,build    --build <build name> [--source-file <path>] [--config-data <data>] [--config-file <path>]
-    cadb interactive    --build <build name>
+    cadb interactive    --build <build name> [--source-file <path>] [--config-data <data>] [--config-file <path>]
     cadb help
 
 Actions:
@@ -38,7 +39,9 @@ Actions:
                 all sources. If '--source-file' is specified, generate a Graphviz '.dot' file only for that source.
     stats       Show information about all source files ('--source-file' value is ignored).
     help        Show this message.
-    interactive <Not Implemented>
+    interactive Starts an interactive session; '--source-file' is passed to the session as part of the 'options' dict
+                and can be used by any of the available commands (run 'help' or 'help <command>' in the interactive
+                session to see more information).
 
 Options:
     The options can be specified in any order, with each one directly followed by its value (separated by whitespace).
@@ -65,74 +68,11 @@ Examples:
     cadb help
 
 Notes:
+    - The options '--config-data' and '--config-file' are only used for building the final config object and are then
+    stripped from the 'options' dict.
     - It is best not to use CTRL+C while a parallel build is being performed as keyboard interrupts are not handled
     correctly. Either wait until the compilation step is done or kill the processes manually.
 """
-
-
-def process_sources(config, options, db):
-    build_config = config['builds'][options['build']]
-    sources_dir = build_config['paths']['sources']
-    excludes = build_config['paths']['excludes']
-    build_dir = build_config['paths']['build']
-    header_file_extensions = build_config['headerFileExtensions']
-    implementation_file_extensions = build_config['implementationFileExtensions']
-
-    header_files = FileSystem.get_source_files_list(sources_dir, header_file_extensions)
-    implementation_files = FileSystem.get_source_files_list(sources_dir, implementation_file_extensions)
-
-    sources = {}
-    for current_file in header_files:
-        if not any(current_file.startswith(current_exclude) for current_exclude in excludes):
-            source_file = SourceFile(
-                includes_config=config['includes'],
-                path=current_file,
-                file_type=SourceType.Header,
-                db_hash=db.get(current_file),
-                object_file_path=None
-            )
-
-            sources[current_file] = source_file
-
-    for current_file in implementation_files:
-        if not any(current_file.startswith(current_exclude) for current_exclude in excludes):
-            source_file = SourceFile(
-                includes_config=config['includes'],
-                path=current_file,
-                file_type=SourceType.Implementation,
-                db_hash=db.get(current_file),
-                object_file_path=Build.get_object_file_path(current_file, sources_dir, build_dir)
-            )
-
-            sources[current_file] = source_file
-
-    return sources
-
-
-def process_dependencies(sources, requested_file=None):
-    internal_dependencies = {}
-    external_dependencies = {}
-
-    if requested_file is not None:
-        if requested_file in sources:
-            sources = {requested_file: sources[requested_file]}
-        else:
-            sources = {}
-
-    for source in sources.values():
-        for current_internal_dependency in source.internal_dependencies:
-            if current_internal_dependency in internal_dependencies:
-                internal_dependencies[current_internal_dependency].append(source)
-            else:
-                internal_dependencies[current_internal_dependency] = [source]
-
-        for current_external_dependency in source.external_dependencies:
-            if current_external_dependency in external_dependencies:
-                external_dependencies[current_external_dependency].append(source)
-            else:
-                external_dependencies[current_external_dependency] = [source]
-
-    return internal_dependencies, external_dependencies
 
 
 def build_action(config, options, db, sources, logger):
@@ -379,7 +319,7 @@ def deps_action(config, options, _, sources, logger):
 
     sources_dir = config['builds'][options['build']]['paths']['sources']
 
-    internal_dependencies, external_dependencies = process_dependencies(sources, requested_file)
+    internal_dependencies, external_dependencies = Processing.process_dependencies(sources, requested_file)
     data = [("Dependency", "Type", "Used By")]
 
     internal_dependencies_list = list(internal_dependencies.keys())
@@ -440,7 +380,7 @@ def graph_action(config, options, _, sources, logger):
     sources_dir = config['builds'][options['build']]['paths']['sources']
     graphs_dir = config['builds'][options['build']]['paths']['graphs']
 
-    internal_dependencies, external_dependencies = process_dependencies(sources, requested_file)
+    internal_dependencies, external_dependencies = Processing.process_dependencies(sources, requested_file)
     graph = networkx.MultiDiGraph()
 
     for dependency_path, dependency_sources in internal_dependencies.items():
@@ -481,7 +421,7 @@ def stats_action(config, options, _, sources, logger):
         return
 
     sources_dir = config['builds'][options['build']]['paths']['sources']
-    internal_dependencies, external_dependencies = process_dependencies(sources)
+    internal_dependencies, external_dependencies = Processing.process_dependencies(sources)
 
     total_lines_count = 0
     total_files_count = 0
@@ -576,10 +516,22 @@ def help_action(*_):
 
 
 def interactive_action(config, options, db, sources, logger):
-    raise NotImplementedError("Action 'interactive' is not available")  # TODO
+    session = Interactive.InteractiveSession(available_actions, config, options, db, sources, logger)
+
+    logger.info(
+        "Started interactive session with ID [{0}] ...".format(session.id),
+        extra={'action': 'interactive'}
+    )
+
+    session.cmdloop()
+
+    logger.info(
+        "... session with ID [{0}] closed.".format(session.id),
+        extra={'action': 'interactive'}
+    )
 
 
-availableActions = {
+available_actions = {
     'build': build_action,
     'clean': clean_action,
     'deps': deps_action,
@@ -602,7 +554,7 @@ def get_command_input():
 
     actions = sys.argv[1].split(',')
     for currentAction in actions:
-        if currentAction not in availableActions:
+        if currentAction not in available_actions:
             print("Error: Action [" + currentAction + "] is not supported.")
             print(usageMessage)
             sys.exit(2)
@@ -640,8 +592,10 @@ def main():
     # gathers all config and data
     actions, options = get_command_input()
     config = get_config(options)
+    options.pop('config-data', None)
+    options.pop('config-file', None)
     db = Database.load_files_db(config['builds'][options['build']]['paths']['database'])
-    sources = process_sources(config, options, db)
+    sources = Processing.process_sources(config, options, db)
 
     # configures logging
     logging_options = config['builds'][options['build']]['options']['logging']
@@ -670,7 +624,7 @@ def main():
     # executes all actions
     for currentAction in actions:
         action_start = datetime.now()
-        availableActions[currentAction](config, options, db, sources, logger)
+        available_actions[currentAction](config, options, db, sources, logger)
         action_end = datetime.now()
         logger.info(
             "Action completed in [{0:.2f}] seconds".format((action_end - action_start).total_seconds()),
@@ -679,5 +633,12 @@ def main():
 
     logger_handler.close()
 
+
+def interrupt_handler(*_):
+    print("Terminating ...")
+    print()
+    sys.exit(0)
+
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, interrupt_handler)
     main()
