@@ -2,9 +2,10 @@
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-from data.SourceFile import SourceFile
-from utils import FileSystem, Build
-from utils.Types import SourceType
+from cadb.utils import FileSystem, Build
+from cadb.utils.Types import SourceType
+
+from cadb.data.SourceFile import SourceFile
 
 
 def process_sources(config, options, db):

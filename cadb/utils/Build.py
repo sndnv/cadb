@@ -4,7 +4,8 @@
 
 import os
 import subprocess
-from utils.Types import SourceType
+
+from cadb.utils.Types import SourceType
 
 
 def get_object_file_path(source_path, sources_dir, build_dir):

@@ -2,8 +2,8 @@
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-from utils.FileSystem import load_json_file
 from ast import literal_eval
+from cadb.utils.FileSystem import load_json_file
 
 
 def load_from_file(config_path):

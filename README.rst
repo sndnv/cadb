@@ -1,6 +1,11 @@
-# cadb - C++ Auto-Discover Build
+cadb - C++ Auto-Discover Build
+==============================
 
-### Usage
+Usage
+~~~~~
+
+::
+
     cadb <actions>      [options]
     cadb clean          --build <build name>
     cadb clean,build    --build <build name>
@@ -8,7 +13,11 @@
     cadb interactive    --build <build name> [--source-file <path>] [--config-data <data>] [--config-file <path>]
     cadb help
 
-### Actions
+Actions
+~~~~~~~
+
+::
+
     Multiple actions can be specified by separating them with commas (without whitespace). They are executed in the
     order that they have been entered.
 
@@ -26,7 +35,11 @@
                 and can be used by any of the available commands (run 'help' or 'help <command>' in the interactive
                 session to see more information).
 
-### Options
+Options
+~~~~~~~
+
+::
+
     The options can be specified in any order, with each one directly followed by its value (separated by whitespace).
 
     --build         <build name>    (required)  Specifies the build configuration name to be used (as defined in the
@@ -41,7 +54,11 @@
                                                 commas: 'a.b=123,a.c="d"' (resulting in {'a': {'b': 123, 'c': 'd'}}).
     --config-file   <path>          (optional)  Sets the configuration file to be used (default: './config/core.conf').
 
-### Examples
+Examples
+~~~~~~~~
+
+::
+
     cadb clean          --build prod
     cadb build          --build prod
     cadb clean,build    --build prod
@@ -50,8 +67,13 @@
     cadb build          --build dev --config-file "/home/myUser/repos/awesome_app/config/dev.conf"
     cadb help
 
-### Notes
+Notes
+~~~~~
+
+::
+
     - The options '--config-data' and '--config-file' are only used for building the final config object and are then
     stripped from the 'options' dict.
     - It is best not to use CTRL+C while a parallel build is being performed as keyboard interrupts are not handled
     correctly. Either wait until the compilation step is done or kill the processes manually.
+

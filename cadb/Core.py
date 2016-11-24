@@ -1,18 +1,16 @@
-#!/usr/bin/env python3
-
 # MIT License
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-from data import Processing
-from utils import Config, Database, Build, Graph, Stats, Interactive
-from utils.Types import SourceType
-from getopt import getopt, GetoptError
-from datetime import datetime
-import multiprocessing
 import logging
-import signal
+import multiprocessing
 import sys
+from datetime import datetime
+from getopt import getopt, GetoptError
+
+from cadb.data import Processing
+from cadb.utils import Config, Database, Build, Graph, Interactive, Stats
+from cadb.utils.Types import SourceType
 
 usageMessage = """
 C++ Auto-Discover Build
@@ -638,7 +636,3 @@ def interrupt_handler(*_):
     print("Terminating ...")
     print()
     sys.exit(0)
-
-if __name__ == '__main__':
-    signal.signal(signal.SIGINT, interrupt_handler)
-    main()

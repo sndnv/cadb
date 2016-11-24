@@ -2,9 +2,10 @@
 # Copyright (c) 2016 https://github.com/sndnv
 # See the project's LICENSE file for the full text
 
-from utils import FileSystem
-import re
 import os
+import re
+
+from cadb.utils import FileSystem
 
 PATTERN_DIRECTIVES = re.compile(r"^(#.+)")
 PATTERN_INCLUDES = re.compile(r"^#include (.+)")
